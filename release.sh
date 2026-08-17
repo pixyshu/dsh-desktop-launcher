@@ -1,8 +1,13 @@
 #!/bin/bash
 # One-command release: builds the universal app, packages the DMG and the zip, publishes both.
 # Usage: bash release.sh <version>   (e.g. bash release.sh v1.0.9)
-# Convention (per maintainer decision): every release ships BOTH assets —
-# the DMG for end users and the zip for scripting/automation.
+#
+# RELEASE POLICY (per maintainer):
+# 1. Every release ships BOTH assets — the DMG for end users and the zip for scripting/automation.
+# 2. Do NOT release on every feature/bugfix commit. Batch changes on main and only publish
+#    when enough features or bug fixes have accumulated.
+# 3. Propose a release (version + changelog + test status) and wait for the maintainer's
+#    explicit approval BEFORE running this script.
 set -e
 cd "$(dirname "$0")"
 
