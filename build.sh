@@ -55,6 +55,8 @@ cat > "$DIST/$APP_NAME.app/Contents/Info.plist" <<EOF
   <key>CFBundleIconFile</key><string>$ICON_FILE</string>
   <key>CFBundleShortVersionString</key><string>1.0.0</string>
   <key>CFBundleVersion</key><string>1</string>
+  <key>CFBundleDevelopmentRegion</key><string>en</string>
+  <key>CFBundleLocalizations</key><array><string>en</string><string>zh-Hans</string></array>
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>NSHighResolutionCapable</key><true/>
   <key>NSPrincipalClass</key><string>NSApplication</string>
@@ -62,6 +64,11 @@ cat > "$DIST/$APP_NAME.app/Contents/Info.plist" <<EOF
 </plist>
 EOF
 printf 'APPL????' > "$DIST/$APP_NAME.app/Contents/PkgInfo"
+
+# ---- 3b. Declare zh-Hans localization (lets system-injected menu items
+#           like "Emoji & Symbols" / "Close All" follow the app language) ----
+mkdir -p "$DIST/$APP_NAME.app/Contents/Resources/zh-Hans.lproj"
+printf '' > "$DIST/$APP_NAME.app/Contents/Resources/zh-Hans.lproj/Localizable.strings"
 
 # ---- 4. Sign (ad-hoc, sufficient for local use) ----
 codesign --force --sign - "$DIST/$APP_NAME.app" >/dev/null 2>&1

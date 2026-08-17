@@ -21,6 +21,25 @@ func dshLog(_ s: String) {
     }
 }
 
+/// Reads locale.preference from ~/.dsh/settings.yaml ("en", "zh", or nil when unset).
+func storedLocalePreference() -> String? {
+    let path = NSHomeDirectory() + "/.dsh/settings.yaml"
+    guard let text = try? String(contentsOfFile: path, encoding: .utf8) else { return nil }
+    var inLocale = false
+    for line in text.components(separatedBy: "\n") {
+        if line.hasPrefix("locale:") { inLocale = true; continue }
+        if inLocale {
+            if !line.hasPrefix(" ") && !line.isEmpty { break }
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.hasPrefix("preference:") {
+                let value = trimmed.dropFirst("preference:".count).trimmingCharacters(in: .whitespacesAndNewlines)
+                return value.isEmpty ? nil : value
+            }
+        }
+    }
+    return nil
+}
+
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var window: NSWindow?
     private var webView: WKWebView?
@@ -45,27 +64,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let loc = ProcessInfo.processInfo.environment["DSH_SET_LOCALE"] {
             writeLocalePreference(loc == "system" ? nil : loc)
         }
+        // Hidden test hook: DSH_DUMP_MENU=1 logs every visible menu title built (verifies localization).
+        if ProcessInfo.processInfo.environment["DSH_DUMP_MENU"] != nil {
+            dumpMenu()
+        }
+    }
+
+    private func dumpMenu() {
+        guard let main = NSApp.mainMenu else { dshLog("dumpMenu: no main menu"); return }
+        for (i, top) in main.items.enumerated() {
+            var line = "menu[\(i)] top=\(top.title)"
+            if let sub = top.submenu {
+                let titles = sub.items.map { $0.isSeparatorItem ? "—" : $0.title }
+                line += " → " + titles.joined(separator: " | ")
+            }
+            dshLog(line)
+        }
     }
 
     // MARK: - Language switching (writes locale.preference in ~/.dsh/settings.yaml;
     // the host watches that file and the web UI re-renders via the locale/change event)
 
     private func currentLocalePreference() -> String? {
-        let path = NSHomeDirectory() + "/.dsh/settings.yaml"
-        guard let text = try? String(contentsOfFile: path, encoding: .utf8) else { return nil }
-        var inLocale = false
-        for line in text.components(separatedBy: "\n") {
-            if line.hasPrefix("locale:") { inLocale = true; continue }
-            if inLocale {
-                if !line.hasPrefix(" ") && !line.isEmpty { break }
-                let trimmed = line.trimmingCharacters(in: .whitespaces)
-                if trimmed.hasPrefix("preference:") {
-                    let value = trimmed.dropFirst("preference:".count).trimmingCharacters(in: .whitespacesAndNewlines)
-                    return value.isEmpty ? nil : value
-                }
-            }
-        }
-        return nil
+        storedLocalePreference()
     }
 
     private func writeLocalePreference(_ pref: String?) {
@@ -344,6 +365,11 @@ extension AppDelegate: WKNavigationDelegate {
 }
 
 // Explicit startup: no @main delegate-instantiation magic
+// Apply the persisted locale before AppKit boots so system-injected menu items
+// (Emoji & Symbols, Close All, …) follow the chosen language too.
+if let pref = storedLocalePreference() {
+    UserDefaults.standard.set([pref == "zh" ? "zh-Hans" : "en"], forKey: "AppleLanguages")
+}
 let app = NSApplication.shared
 let delegate = AppDelegate()
 app.delegate = delegate
