@@ -51,6 +51,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         dshLog("applicationDidFinishLaunching (port=\(port))")
+        ensureScripts()
         buildMenu()
         buildWindow()
         startServerThenLoad()
@@ -185,6 +186,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         dshLog("applicationWillTerminate → runStopScript")
         runStopScript()
+    }
+
+    // Self-provisioning: if ~/.dsh/start-dsh.sh (or stop-dsh.sh) is missing, copy the
+    // embedded copies out of the bundle so a DMG/zip install works out of the box.
+    // Existing (possibly user-tuned) scripts are never overwritten.
+    private func ensureScripts() {
+        let fm = FileManager.default
+        try? fm.createDirectory(atPath: scriptsDir, withIntermediateDirectories: true)
+        guard let bundled = Bundle.main.resourceURL?.appendingPathComponent("scripts") else { return }
+        for name in ["start-dsh.sh", "stop-dsh.sh"] {
+            let dest = scriptsDir + "/" + name
+            if fm.fileExists(atPath: dest) { continue }
+            let src = bundled.appendingPathComponent(name)
+            do {
+                try fm.copyItem(at: src, to: URL(fileURLWithPath: dest))
+                try fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: dest)
+                dshLog("provisioned \(name)")
+            } catch {
+                dshLog("provision \(name) failed: \(error)")
+            }
+        }
     }
 
     // MARK: - Menu bar (macOS keyboard shortcuts are driven by menu key equivalents)

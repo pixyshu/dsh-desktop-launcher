@@ -33,6 +33,10 @@
 
 ## Install
 
+**Easy way (DMG, recommended)** — download `DSH-Desktop-Launcher-<version>-macos-universal.dmg` from [Releases](https://github.com/pixyshu/dsh-desktop-launcher/releases), open it and drag **DSH.app** into *Applications*. First launch auto-installs the helper scripts to `~/.dsh` — nothing else to do (Node.js is still required).
+
+**Build from source**:
+
 ```bash
 git clone https://github.com/pixyshu/dsh-desktop-launcher
 cd dsh-desktop-launcher
@@ -41,7 +45,7 @@ bash install.sh    # installs dsh if missing, builds the app, installs the scrip
 
 Then drag `~/Applications/DSH.app` to your Dock.
 
-Prefer a prebuilt binary? Download the universal zip (Apple Silicon & Intel) from [Releases](https://github.com/pixyshu/dsh-desktop-launcher/releases), unzip into `Applications`, and copy `scripts/start-dsh.sh` + `scripts/stop-dsh.sh` to `~/.dsh/`.
+Also available as a plain **zip** (same app, no installer layout) for scripting/automation.
 
 ## Usage
 

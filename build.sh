@@ -70,6 +70,12 @@ printf 'APPL????' > "$DIST/$APP_NAME.app/Contents/PkgInfo"
 mkdir -p "$DIST/$APP_NAME.app/Contents/Resources/zh-Hans.lproj"
 printf '' > "$DIST/$APP_NAME.app/Contents/Resources/zh-Hans.lproj/Localizable.strings"
 
+# ---- 3c. Embed the helper scripts (self-provisioned to ~/.dsh on first launch,
+#           so a DMG/zip install works out of the box) ----
+mkdir -p "$DIST/$APP_NAME.app/Contents/Resources/scripts"
+cp scripts/start-dsh.sh "$DIST/$APP_NAME.app/Contents/Resources/scripts/start-dsh.sh"
+cp scripts/stop-dsh.sh  "$DIST/$APP_NAME.app/Contents/Resources/scripts/stop-dsh.sh"
+
 # ---- 4. Sign (ad-hoc, sufficient for local use) ----
 codesign --force --sign - "$DIST/$APP_NAME.app" >/dev/null 2>&1
 codesign -v "$DIST/$APP_NAME.app" && echo "✅ Signature valid"
