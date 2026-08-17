@@ -1,6 +1,8 @@
 #!/bin/bash
-# One-command release: builds the universal app, packages the DMG, publishes it.
+# One-command release: builds the universal app, packages the DMG and the zip, publishes both.
 # Usage: bash release.sh <version>   (e.g. bash release.sh v1.0.9)
+# Convention (per maintainer decision): every release ships BOTH assets —
+# the DMG for end users and the zip for scripting/automation.
 set -e
 cd "$(dirname "$0")"
 
@@ -20,11 +22,20 @@ codesign -v dist/DSH.app
 echo "→ Building the DMG…"
 bash make-dmg.sh "$TAG"
 
+echo "→ Building the zip…"
+ditto -c -k --keepParent dist/DSH.app "/tmp/DSH-${TAG}-macos-universal.zip"
+
 DMG="dist/DSH-Desktop-Launcher-${TAG}-macos-universal.dmg"
-echo "→ Publishing $VERSION with: $DMG"
-/opt/homebrew/bin/gh release create "$VERSION" "$DMG" \
+ZIP="/tmp/DSH-${TAG}-macos-universal.zip"
+echo "→ Publishing $VERSION with both assets:"
+echo "   $DMG"
+echo "   $ZIP"
+/opt/homebrew/bin/gh release create "$VERSION" "$DMG" "$ZIP" \
   --title "DSH Desktop Launcher $VERSION" \
-  --notes "Download the DMG, open it, and drag DSH.app into Applications — first launch auto-installs the helper scripts." \
-  || { /opt/homebrew/bin/gh release create "$VERSION" "$DMG" --title "DSH Desktop Launcher $VERSION" --notes "Download the DMG, open it, and drag DSH.app into Applications — first launch auto-installs the helper scripts."; }
+  --notes "Two formats:
+
+- **DMG** (recommended): open it, drag DSH.app into Applications — first launch auto-installs the helper scripts
+- **ZIP**: same app, for scripting/automation" \
+  || { /opt/homebrew/bin/gh release create "$VERSION" "$DMG" "$ZIP" --title "DSH Desktop Launcher $VERSION" --notes "Two formats: DMG (recommended) and ZIP."; }
 
 echo "🎉 Done: https://github.com/pixyshu/dsh-desktop-launcher/releases/tag/$VERSION"
