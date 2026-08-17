@@ -19,7 +19,7 @@ stop_listener() {
   local pid="$1"
   [ -n "$pid" ] || return 0
   kill -TERM "$pid" 2>/dev/null
-  for i in $(seq 1 15); do
+  for i in $(seq 1 5); do
     /usr/sbin/lsof -nP -iTCP:$PORT -sTCP:LISTEN >/dev/null 2>&1 || return 0
     sleep 1
   done
@@ -27,11 +27,16 @@ stop_listener() {
   return 0
 }
 
-stop_listener "$(listener)"
-
-for i in $(seq 1 10); do
-  L=$(listener)
-  [ -n "$L" ] && { stop_listener "$L"; break; }
-  sleep 1
-done
+# 常规路径：已有监听进程 → 直接停（实测 TERM 后端口即刻释放，秒停）
+L0=$(listener)
+if [ -n "$L0" ]; then
+  stop_listener "$L0"
+else
+  # 竞态兜底：只有"停止时服务尚未监听"才等待（启动中的竞态），最多 10 秒
+  for i in $(seq 1 10); do
+    L=$(listener)
+    [ -n "$L" ] && { stop_listener "$L"; break; }
+    sleep 1
+  done
+fi
 exit 0
