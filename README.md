@@ -20,7 +20,7 @@
 ## Features
 
 - **One click, one window** — launching the app boots `dsh web` in the background and shows the UI in a native window.
-- **Close to stop** — closing the window shuts down the server it started, gracefully and quickly (~1s).
+- **Close to hide, quit to stop** — the red button (or `⌘W`) closes the window; the app and server keep running. Quit via `⌘Q` (or Dock → Quit) stops the server gracefully (~1s). Click the Dock icon to reopen the window instantly.
 - **Never kills foreign servers** — a server already running (terminal, ChatGPT, …) is reused and left alone.
 - **Sessions survive restarts** — everything persists under `~/.dsh`; reopen and continue where you left off.
 - **Language switching** — menu bar *Language* → English / 中文 / System default, applied live (no reload needed); the menu bar itself follows the same language.
@@ -46,12 +46,14 @@ Prefer a prebuilt binary? Download the universal zip (Apple Silicon & Intel) fro
 ## Usage
 
 - Click the **DSH** icon → the server starts and the window opens.
-- Click the red close button (or `⌘W`) → the app quits and the server stops.
+- Click the red close button (or `⌘W`) → the window closes; the app and server keep running.
+- Click the **Dock icon** again → the window reopens instantly.
+- `⌘Q` (or Dock → Quit) → the app quits and the server stops.
 - Logs: `~/.dsh/web-app-3080.log` · `~/.dsh/dsh-app-debug.log`
 
 ## How it works
 
-On launch the app runs `~/.dsh/start-dsh.sh`; on quit it runs `~/.dsh/stop-dsh.sh`. Ownership is tracked with a flag file (`.web-app-<port>.flag`) so only servers the app started are ever stopped, and shutdown targets the actual port listener rather than a recorded PID (which can drift). See [docs/testing.md](docs/testing.md) for the test matrix.
+On launch the app runs `~/.dsh/start-dsh.sh`; on quit (`⌘Q` / Dock → Quit) it runs `~/.dsh/stop-dsh.sh`. Closing the window keeps everything running — clicking the Dock icon just re-shows the same window. Ownership is tracked with a flag file (`.web-app-<port>.flag`) so only servers the app started are ever stopped, and shutdown targets the actual port listener rather than a recorded PID (which can drift). See [docs/testing.md](docs/testing.md) for the test matrix.
 
 ## License
 

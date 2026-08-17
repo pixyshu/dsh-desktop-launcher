@@ -68,6 +68,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if ProcessInfo.processInfo.environment["DSH_DUMP_MENU"] != nil {
             dumpMenu()
         }
+        // Hidden test hook: DSH_TEST_CLOSE_WINDOW=1 performs a real window close after 10s
+        // (verifies the app and server keep running after the red button).
+        if ProcessInfo.processInfo.environment["DSH_TEST_CLOSE_WINDOW"] != nil {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
+                self?.window?.performClose(nil)
+                dshLog("test: performClose triggered")
+            }
+        }
     }
 
     private func dumpMenu() {
@@ -154,9 +162,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    // Last window closed → quit → applicationWillTerminate → stop the server
+    // Red close button (or ⌘W) only closes the window; the app and the server
+    // keep running. Quit via ⌘Q / Dock → Quit stops the server (applicationWillTerminate).
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        dshLog("last window closed → terminate")
+        dshLog("window closed — app stays running")
+        return false
+    }
+
+    // Clicking the Dock icon reopens the window (same web view state).
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if !flag {
+            if let win = window {
+                win.makeKeyAndOrderFront(nil)
+                dshLog("reopened window from Dock")
+            } else {
+                buildWindow()
+            }
+        }
         return true
     }
 
