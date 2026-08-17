@@ -41,6 +41,75 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let snapPath = ProcessInfo.processInfo.environment["DSH_SNAPSHOT"] {
             scheduleSnapshot(to: snapPath)
         }
+        // Hidden test hook: DSH_SET_LOCALE=en|zh|system writes the locale preference at launch.
+        if let loc = ProcessInfo.processInfo.environment["DSH_SET_LOCALE"] {
+            writeLocalePreference(loc == "system" ? nil : loc)
+        }
+    }
+
+    // MARK: - Language switching (writes locale.preference in ~/.dsh/settings.yaml;
+    // the host watches that file and the web UI re-renders via the locale/change event)
+
+    private func currentLocalePreference() -> String? {
+        let path = NSHomeDirectory() + "/.dsh/settings.yaml"
+        guard let text = try? String(contentsOfFile: path, encoding: .utf8) else { return nil }
+        var inLocale = false
+        for line in text.components(separatedBy: "\n") {
+            if line.hasPrefix("locale:") { inLocale = true; continue }
+            if inLocale {
+                if !line.hasPrefix(" ") && !line.isEmpty { break }
+                let trimmed = line.trimmingCharacters(in: .whitespaces)
+                if trimmed.hasPrefix("preference:") {
+                    let value = trimmed.dropFirst("preference:".count).trimmingCharacters(in: .whitespacesAndNewlines)
+                    return value.isEmpty ? nil : value
+                }
+            }
+        }
+        return nil
+    }
+
+    private func writeLocalePreference(_ pref: String?) {
+        let path = NSHomeDirectory() + "/.dsh/settings.yaml"
+        let fm = FileManager.default
+        let text = (try? String(contentsOfFile: path, encoding: .utf8)) ?? ""
+
+        // Drop any existing top-level `locale:` block (everything else is preserved verbatim)
+        let lines = text.components(separatedBy: "\n")
+        var out: [String] = []
+        var i = 0
+        while i < lines.count {
+            let line = lines[i]
+            if line.hasPrefix("locale:") {
+                i += 1
+                while i < lines.count && (lines[i].hasPrefix(" ") || lines[i].isEmpty) { i += 1 }
+                continue
+            }
+            out.append(line)
+            i += 1
+        }
+        var result = out.joined(separator: "\n")
+        while result.hasSuffix("\n") { result.removeLast() }
+
+        if let pref = pref, !pref.isEmpty {
+            result += (result.isEmpty ? "" : "\n") + "locale:\n  preference: \(pref)\n"
+        }
+
+        // Atomic replace — the host watches this file and reloads on change
+        let tmp = path + ".dsh-tmp"
+        try? result.write(toFile: tmp, atomically: true, encoding: .utf8)
+        try? fm.setAttributes([.posixPermissions: 0o600], ofItemAtPath: tmp)
+        try? fm.removeItem(atPath: path)
+        try? fm.moveItem(atPath: tmp, toPath: path)
+        dshLog("locale preference → \(pref ?? "system default")")
+    }
+
+    @objc private func setLanguage(_ sender: NSMenuItem) {
+        switch sender.tag {
+        case 1: writeLocalePreference("zh")
+        case 2: writeLocalePreference(nil)
+        default: writeLocalePreference("en")
+        }
+        buildMenu()  // rebuild so checkmarks reflect the new selection
     }
 
     private func scheduleSnapshot(to path: String) {
@@ -119,6 +188,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         winMenu.addItem(withTitle: "Minimize", action: #selector(NSWindow.miniaturize(_:)), keyEquivalent: "m")
         winMenu.addItem(withTitle: "Close Window", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
         NSApp.windowsMenu = winMenu
+
+        // Language menu: English / 中文 / System default (applies live via the host settings watcher)
+        let langItem = NSMenuItem()
+        mainMenu.addItem(langItem)
+        let langMenu = NSMenu(title: "Language")
+        langItem.submenu = langMenu
+        let current = currentLocalePreference()
+        let enItem = NSMenuItem(title: "English", action: #selector(setLanguage(_:)), keyEquivalent: "")
+        enItem.tag = 0
+        enItem.state = current == "en" ? .on : .off
+        let zhItem = NSMenuItem(title: "中文", action: #selector(setLanguage(_:)), keyEquivalent: "")
+        zhItem.tag = 1
+        zhItem.state = current == "zh" ? .on : .off
+        let sysItem = NSMenuItem(title: "跟随系统 / System Default", action: #selector(setLanguage(_:)), keyEquivalent: "")
+        sysItem.tag = 2
+        sysItem.state = current == nil ? .on : .off
+        langMenu.addItem(enItem)
+        langMenu.addItem(zhItem)
+        langMenu.addItem(NSMenuItem.separator())
+        langMenu.addItem(sysItem)
 
         NSApp.mainMenu = mainMenu
         dshLog("menu built")

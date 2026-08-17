@@ -23,6 +23,7 @@
 - **Close to stop** — closing the window shuts down the server it started, gracefully and quickly (~1s).
 - **Never kills foreign servers** — a server already running (terminal, ChatGPT, …) is reused and left alone.
 - **Sessions survive restarts** — everything persists under `~/.dsh`; reopen and continue where you left off.
+- **Language switching** — menu bar *Language* → English / 中文 / System default, applied live (no reload needed).
 - **Zero runtime dependencies** — macOS built-ins only (`bash`, `lsof`, `curl`), no npm packages of its own.
 
 ## Requirements
