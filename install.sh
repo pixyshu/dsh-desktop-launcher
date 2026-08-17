@@ -7,12 +7,22 @@
 set -e
 cd "$(dirname "$0")"
 
-# ---- 0. Node 检查 ----
+# ---- 0. Node 检查（存在 + 版本 >=22.19）----
 if ! command -v node >/dev/null 2>&1; then
   echo "❌ 未找到 Node.js（需要 >=22.19，dsh 运行时必需）。"
-  echo "   安装方式：官网 https://nodejs.org 下载，或 brew install node"
+  echo "   安装方式（三选一）："
+  echo "   A. 官网安装包：https://nodejs.org → 下载 macOS Installer(.pkg) → 双击完成"
+  echo "   B. Homebrew：brew install node"
+  echo "   C. 版本管理器：npm i -g n && n lts（适合已有旧版 Node 想升级）"
+  echo "   装好后重新运行本脚本即可。"
   exit 1
 fi
+if ! node -e 'const [a,b]=process.versions.node.split(".").map(Number);process.exit(a>22||(a===22&&b>=19)?0:1)' 2>/dev/null; then
+  echo "❌ Node.js 版本过低（需要 >=22.19，当前 $(node -v)）。"
+  echo "   升级方式：官网 https://nodejs.org 重装，或 brew upgrade node，或 npm i -g n && n lts"
+  exit 1
+fi
+echo "✅ Node.js $(node -v) 满足要求"
 
 # ---- 1. dsh 检查与自动安装 ----
 if command -v dsh >/dev/null 2>&1; then

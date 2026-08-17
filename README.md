@@ -1,5 +1,12 @@
 # DSH Desktop Launcher
 
+<p align="center">
+  <a href="https://github.com/pixyshu/dsh-desktop-launcher/releases"><img src="https://img.shields.io/badge/release-v1.0.0-blue" alt="release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="license"></a>
+  <img src="https://img.shields.io/badge/macOS-13%2B-orange" alt="macOS 13+">
+  <img src="https://img.shields.io/badge/architecture-universal(arm64%2Bx86__64)-lightgrey" alt="universal">
+</p>
+
 把 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）变成**单窗口原生 macOS 应用**：双击打开，服务自动启动、窗口直接可用；点红点关窗，服务自动停止。全程无终端、无 Chrome。
 
 > 社区项目，非 DeepSeek 官方产品。核心功能已验证（见文末测试矩阵）。
@@ -33,15 +40,45 @@
 
 ## 安装
 
+### 第 0 步：安装 Node.js（唯一需要手动装的依赖，三选一）
+
+**A. 官方安装包（推荐新手）**
+
+1. 打开 https://nodejs.org
+2. 下载 **LTS** 版本的 macOS Installer（`.pkg`）
+3. 双击安装包 → 一路"继续"→ 完成（同时会装好 npm）
+
+**B. Homebrew（已有 Homebrew 的用户）**
+
+```bash
+brew install node
+```
+
+**C. 版本管理器 n（已有旧版 Node，只想升级）**
+
+```bash
+npm i -g n && n lts
+```
+
+**验证**（任选其一后执行，版本号需 ≥ 22.19）：
+
+```bash
+node -v    # 例如 v24.13.0 ✅
+```
+
+### 第 1 步：安装本启动器
+
 ```bash
 git clone https://github.com/pixyshu/dsh-desktop-launcher
 cd dsh-desktop-launcher
-bash install.sh        # 构建 dist/DSH.app → 装脚本到 ~/.dsh → 复制应用到 ~/Applications
+bash install.sh        # 自动装 dsh（缺失时）→ 装脚本到 ~/.dsh → 构建应用 → 复制到 ~/Applications
 ```
 
 然后把 `~/Applications/DSH.app` 拖到程序坞，日常点击即可。
 
-**图标**：仓库不含 DeepSeek 品牌图标。把自己的图标放成 `assets/AppIcon.icns`（1024×1024 的 icns 文件）再构建即可；不提供时自动生成纯色占位图标。
+> 不想自己编译？到 [Releases](https://github.com/pixyshu/dsh-desktop-launcher/releases) 下载 `DSH-1.0.0-macos-universal.zip`（arm64 与 Intel 通用），解压拖入「应用程序」后，只需运行一次 `install.sh` 里的脚本安装部分（或手动把 `scripts/start-dsh.sh`、`scripts/stop-dsh.sh` 复制到 `~/.dsh/`）。
+
+**图标**：仓库自带原创默认图标（深蓝渐变 + DSH 字标，`assets/AppIcon.icns`）。想换自己的：替换该文件后重新 `bash build.sh` 即可。
 
 ## 工作原理与文件结构
 
