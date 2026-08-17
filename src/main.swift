@@ -1,8 +1,9 @@
-// DSH.app — DeepSeek Harness 单窗口原生应用（通用发行版）
-// 生命周期：启动 → 后台执行 start-dsh.sh → 窗口内加载 http://127.0.0.1:3080
-//          最后一个窗口关闭 → 应用退出 → 执行 stop-dsh.sh → 服务停止
-// 服务归属判断完全由 ~/.dsh/start-dsh.sh 与 stop-dsh.sh 负责（复用已运行服务、不误杀外部服务）。
-// 环境变量：DSH_PORT 覆盖默认端口（调试用）；DSH_HOME 覆盖脚本目录（默认 ~/.dsh）。
+// DSH.app — DeepSeek Harness as a native single-window macOS app.
+// Lifecycle: on launch, run start-dsh.sh in the background and load http://127.0.0.1:3080;
+//            when the last window closes, the app quits and runs stop-dsh.sh.
+// Server ownership is handled entirely by ~/.dsh/start-dsh.sh and stop-dsh.sh
+// (running servers are reused; foreign servers are never killed).
+// Environment: DSH_PORT overrides the port (debugging); DSH_HOME overrides the scripts dir (default ~/.dsh).
 import Cocoa
 import WebKit
 
@@ -35,62 +36,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         buildWindow()
         startServerThenLoad()
         NSApp.activate(ignoringOtherApps: true)
+        // Hidden snapshot hook (used to generate the README screenshot):
+        // DSH_SNAPSHOT=/path.png renders the web view to a PNG and quits.
+        if let snapPath = ProcessInfo.processInfo.environment["DSH_SNAPSHOT"] {
+            scheduleSnapshot(to: snapPath)
+        }
     }
 
-    // MARK: - 菜单栏（macOS 快捷键依赖菜单项的 keyEquivalent）
-
-    private func buildMenu() {
-        let mainMenu = NSMenu()
-
-        // 应用菜单：⌘Q 退出 / ⌘H 隐藏
-        let appItem = NSMenuItem()
-        mainMenu.addItem(appItem)
-        let appMenu = NSMenu()
-        appItem.submenu = appMenu
-        appMenu.addItem(withTitle: "关于 DSH", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
-        appMenu.addItem(NSMenuItem.separator())
-        appMenu.addItem(withTitle: "隐藏 DSH", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
-        appMenu.addItem(NSMenuItem.separator())
-        appMenu.addItem(withTitle: "退出 DSH", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
-
-        // 编辑菜单：⌘C/⌘V/⌘X/⌘A/⌘Z 走响应链 → WKWebView 文本编辑
-        let editItem = NSMenuItem()
-        mainMenu.addItem(editItem)
-        let editMenu = NSMenu(title: "编辑")
-        editItem.submenu = editMenu
-        editMenu.addItem(withTitle: "撤销", action: Selector(("undo:")), keyEquivalent: "z")
-        editMenu.addItem(withTitle: "重做", action: Selector(("redo:")), keyEquivalent: "Z")
-        editMenu.addItem(NSMenuItem.separator())
-        editMenu.addItem(withTitle: "剪切", action: Selector(("cut:")), keyEquivalent: "x")
-        editMenu.addItem(withTitle: "拷贝", action: Selector(("copy:")), keyEquivalent: "c")
-        editMenu.addItem(withTitle: "粘贴", action: Selector(("paste:")), keyEquivalent: "v")
-        editMenu.addItem(withTitle: "全选", action: Selector(("selectAll:")), keyEquivalent: "a")
-
-        // 视图菜单：⌘R 刷新
-        let viewItem = NSMenuItem()
-        mainMenu.addItem(viewItem)
-        let viewMenu = NSMenu(title: "视图")
-        viewItem.submenu = viewMenu
-        viewMenu.addItem(withTitle: "刷新", action: #selector(reloadPage), keyEquivalent: "r")
-
-        // 窗口菜单：⌘W 关窗（关窗=退出=停服务）/ ⌘M 最小化
-        let winItem = NSMenuItem()
-        mainMenu.addItem(winItem)
-        let winMenu = NSMenu(title: "窗口")
-        winItem.submenu = winMenu
-        winMenu.addItem(withTitle: "最小化", action: #selector(NSWindow.miniaturize(_:)), keyEquivalent: "m")
-        winMenu.addItem(withTitle: "关闭窗口", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
-        NSApp.windowsMenu = winMenu
-
-        NSApp.mainMenu = mainMenu
-        dshLog("menu built")
+    private func scheduleSnapshot(to path: String) {
+        dshLog("snapshot mode → \(path)")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
+            guard let self, let wv = self.webView else { exit(1) }
+            let config = WKSnapshotConfiguration()
+            config.rect = wv.bounds
+            wv.takeSnapshot(with: config) { image, error in
+                if let image = image,
+                   let tiff = image.tiffRepresentation,
+                   let rep = NSBitmapImageRep(data: tiff),
+                   let png = rep.representation(using: .png, properties: [:]) {
+                    try? png.write(to: URL(fileURLWithPath: path))
+                    dshLog("snapshot written")
+                } else {
+                    dshLog("snapshot failed: \(String(describing: error))")
+                }
+                NSApp.terminate(nil)
+            }
+        }
     }
 
-    @objc private func reloadPage() {
-        webView?.reload()
-    }
-
-    // 最后一个窗口关闭 → 应用退出 → applicationWillTerminate → 停止服务
+    // Last window closed → quit → applicationWillTerminate → stop the server
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         dshLog("last window closed → terminate")
         return true
@@ -99,6 +73,59 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         dshLog("applicationWillTerminate → runStopScript")
         runStopScript()
+    }
+
+    // MARK: - Menu bar (macOS keyboard shortcuts are driven by menu key equivalents)
+
+    private func buildMenu() {
+        let mainMenu = NSMenu()
+
+        // App menu: ⌘Q quit / ⌘H hide
+        let appItem = NSMenuItem()
+        mainMenu.addItem(appItem)
+        let appMenu = NSMenu()
+        appItem.submenu = appMenu
+        appMenu.addItem(withTitle: "About DSH", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        appMenu.addItem(NSMenuItem.separator())
+        appMenu.addItem(withTitle: "Hide DSH", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
+        appMenu.addItem(NSMenuItem.separator())
+        appMenu.addItem(withTitle: "Quit DSH", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+
+        // Edit menu: ⌘C/⌘V/⌘X/⌘A/⌘Z through the responder chain → WKWebView text editing
+        let editItem = NSMenuItem()
+        mainMenu.addItem(editItem)
+        let editMenu = NSMenu(title: "Edit")
+        editItem.submenu = editMenu
+        editMenu.addItem(withTitle: "Undo", action: Selector(("undo:")), keyEquivalent: "z")
+        editMenu.addItem(withTitle: "Redo", action: Selector(("redo:")), keyEquivalent: "Z")
+        editMenu.addItem(NSMenuItem.separator())
+        editMenu.addItem(withTitle: "Cut", action: Selector(("cut:")), keyEquivalent: "x")
+        editMenu.addItem(withTitle: "Copy", action: Selector(("copy:")), keyEquivalent: "c")
+        editMenu.addItem(withTitle: "Paste", action: Selector(("paste:")), keyEquivalent: "v")
+        editMenu.addItem(withTitle: "Select All", action: Selector(("selectAll:")), keyEquivalent: "a")
+
+        // View menu: ⌘R reload
+        let viewItem = NSMenuItem()
+        mainMenu.addItem(viewItem)
+        let viewMenu = NSMenu(title: "View")
+        viewItem.submenu = viewMenu
+        viewMenu.addItem(withTitle: "Reload", action: #selector(reloadPage), keyEquivalent: "r")
+
+        // Window menu: ⌘W close (close = quit = stop server) / ⌘M minimize
+        let winItem = NSMenuItem()
+        mainMenu.addItem(winItem)
+        let winMenu = NSMenu(title: "Window")
+        winItem.submenu = winMenu
+        winMenu.addItem(withTitle: "Minimize", action: #selector(NSWindow.miniaturize(_:)), keyEquivalent: "m")
+        winMenu.addItem(withTitle: "Close Window", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+        NSApp.windowsMenu = winMenu
+
+        NSApp.mainMenu = mainMenu
+        dshLog("menu built")
+    }
+
+    @objc private func reloadPage() {
+        webView?.reload()
     }
 
     // MARK: - UI
@@ -126,7 +153,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         dshLog("window created")
     }
 
-    // MARK: - 服务生命周期
+    // MARK: - Server lifecycle
 
     private func startServerThenLoad() {
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
@@ -159,7 +186,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1) { self.loadWhenReady() }
                 } else {
                     wv.loadHTMLString(
-                        "<h2>DSH 服务启动失败</h2><p>请查看日志：~/.dsh/web-app-\(self.port).log</p>",
+                        "<h2>DSH server failed to start</h2><p>See ~/.dsh/web-app-\(self.port).log</p>",
                         baseURL: nil
                     )
                 }
@@ -178,12 +205,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } catch {
             dshLog("stop Process.run FAILED: \(error)")
         }
-        p.waitUntilExit()  // 等优雅停止完成（最多约 15 秒）再退出进程
+        p.waitUntilExit()  // wait for graceful stop (up to ~5s) before exiting
         dshLog("stop-dsh.sh exited: \(p.terminationStatus)")
     }
 }
 
-// MARK: - 导航失败重试（服务重启窗口期）
+// MARK: - Retry on navigation failure (server restart window)
 
 extension AppDelegate: WKNavigationDelegate {
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
@@ -194,7 +221,7 @@ extension AppDelegate: WKNavigationDelegate {
     }
 }
 
-// 显式启动结构：不依赖 @main 的委托实例化魔法
+// Explicit startup: no @main delegate-instantiation magic
 let app = NSApplication.shared
 let delegate = AppDelegate()
 app.delegate = delegate

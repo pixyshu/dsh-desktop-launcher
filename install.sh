@@ -1,57 +1,57 @@
 #!/bin/bash
-# DSH Desktop Launcher 一键安装
-# 0) 检查 Node.js（dsh 运行时必需）
-# 1) 没有 dsh 则自动全局安装 @deepseek-ai/dsh
-# 2) 安装启动/停止脚本到 ~/.dsh
-# 3) 构建 dist/DSH.app 并复制到 ~/Applications/DSH.app
+# DSH Desktop Launcher one-shot installer
+# 0) Checks Node.js (required by the dsh runtime)
+# 1) Installs @deepseek-ai/dsh globally when missing
+# 2) Installs the start/stop scripts into ~/.dsh
+# 3) Builds dist/DSH.app and copies it to ~/Applications/DSH.app
 set -e
 cd "$(dirname "$0")"
 
-# ---- 0. Node 检查（存在 + 版本 >=22.19）----
+# ---- 0. Node check (present + version >=22.19) ----
 if ! command -v node >/dev/null 2>&1; then
-  echo "❌ 未找到 Node.js（需要 >=22.19，dsh 运行时必需）。"
-  echo "   安装方式（三选一）："
-  echo "   A. 官网安装包：https://nodejs.org → 下载 macOS Installer(.pkg) → 双击完成"
-  echo "   B. Homebrew：brew install node"
-  echo "   C. 版本管理器：npm i -g n && n lts（适合已有旧版 Node 想升级）"
-  echo "   装好后重新运行本脚本即可。"
+  echo "❌ Node.js not found (need >=22.19)."
+  echo "   Install it one of these ways:"
+  echo "   A. Official installer: https://nodejs.org → download the macOS Installer (.pkg) → double-click"
+  echo "   B. Homebrew: brew install node"
+  echo "   C. Version manager: npm i -g n && n lts (upgrade an existing install)"
+  echo "   Then re-run this script."
   exit 1
 fi
 if ! node -e 'const [a,b]=process.versions.node.split(".").map(Number);process.exit(a>22||(a===22&&b>=19)?0:1)' 2>/dev/null; then
-  echo "❌ Node.js 版本过低（需要 >=22.19，当前 $(node -v)）。"
-  echo "   升级方式：官网 https://nodejs.org 重装，或 brew upgrade node，或 npm i -g n && n lts"
+  echo "❌ Node.js too old (need >=22.19, found $(node -v))."
+  echo "   Upgrade: reinstall from https://nodejs.org, or brew upgrade node, or npm i -g n && n lts"
   exit 1
 fi
-echo "✅ Node.js $(node -v) 满足要求"
+echo "✅ Node.js $(node -v) OK"
 
-# ---- 1. dsh 检查与自动安装 ----
+# ---- 1. dsh check and auto-install ----
 if command -v dsh >/dev/null 2>&1; then
-  echo "✅ dsh 已存在：$(command -v dsh)"
+  echo "✅ dsh found: $(command -v dsh)"
 elif command -v npm >/dev/null 2>&1; then
-  echo "→ 未找到 dsh，自动安装 @deepseek-ai/dsh（全局）…"
+  echo "→ dsh not found, installing @deepseek-ai/dsh globally…"
   if npm i -g @deepseek-ai/dsh >/dev/null 2>&1; then
-    echo "✅ dsh 安装完成"
+    echo "✅ dsh installed"
   else
-    echo "⚠️ 自动安装失败。可手动执行：npm i -g @deepseek-ai/dsh"
-    echo "   或设置环境变量 DSH_BIN=/path/to/dsh（启动脚本仍会尝试 npx 兜底，首次启动较慢）"
+    echo "⚠️ Auto-install failed. Run manually: npm i -g @deepseek-ai/dsh"
+    echo "   or set DSH_BIN=/path/to/dsh (the start script also falls back to npx, slower on first run)"
   fi
 else
-  echo "⚠️ 未找到 dsh 且没有 npm：启动时脚本会尝试 npx 兜底（需 npx 可用）。"
+  echo "⚠️ dsh not found and no npm: the start script will try the npx fallback (requires npx)."
 fi
 
-echo "→ 安装脚本到 ~/.dsh …"
+echo "→ Installing scripts to ~/.dsh …"
 mkdir -p "$HOME/.dsh"
 cp scripts/start-dsh.sh "$HOME/.dsh/start-dsh.sh"
 cp scripts/stop-dsh.sh  "$HOME/.dsh/stop-dsh.sh"
 chmod +x "$HOME/.dsh/start-dsh.sh" "$HOME/.dsh/stop-dsh.sh"
-echo "✅ 脚本已安装"
+echo "✅ Scripts installed"
 
 if [ ! -d "dist/DSH.app" ]; then
-  echo "→ 构建应用…"
+  echo "→ Building the app…"
   bash build.sh
 fi
 
-echo "→ 复制应用到 ~/Applications …"
+echo "→ Copying app to ~/Applications …"
 mkdir -p "$HOME/Applications"
 rm -rf "$HOME/Applications/DSH.app"
 cp -R "dist/DSH.app" "$HOME/Applications/DSH.app"
@@ -59,8 +59,8 @@ codesign --force --sign - "$HOME/Applications/DSH.app" >/dev/null 2>&1
 /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$HOME/Applications/DSH.app" >/dev/null 2>&1
 
 echo ""
-echo "🎉 安装完成！"
-echo "   1. 打开访达 ~/Applications，把 DSH 拖到程序坞"
-echo "   2. 双击鲸鱼/图标：服务自动启动 + 窗口打开"
-echo "   3. 点红点关窗：服务自动停止"
-echo "   日志：~/.dsh/web-app-3080.log · ~/.dsh/dsh-app-debug.log"
+echo "🎉 Done!"
+echo "   1. Open ~/Applications in Finder and drag DSH to your Dock"
+echo "   2. Click the DSH icon: the server starts and the window opens"
+echo "   3. Close the window (red button): the server stops"
+echo "   Logs: ~/.dsh/web-app-3080.log · ~/.dsh/dsh-app-debug.log"

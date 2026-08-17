@@ -1,17 +1,17 @@
 #!/bin/bash
-# DSH 服务停止脚本（通用发行版）
-# - 只停"自己启动"的服务（以 ~/.dsh/.web-app.<port>.flag 归属标记为准）
-# - 按"当前监听端口的进程"停止（不依赖记录 PID，避免错位）
-# - 幂等：无标记或已无监听时直接退出 0
-# - 竞态兜底：关窗时服务可能还在启动中（尚未监听），最多再等 10 秒
-# 环境变量：DSH_PORT，默认 3080
+# DSH server stop script (shipped with DSH Desktop Launcher)
+# - Only stops servers this launcher started (ownership flag: ~/.dsh/.web-app.<port>.flag)
+# - Stops the actual port listener, not a recorded PID (PIDs can drift)
+# - Idempotent: exits 0 when there is no flag or no listener
+# - Race guard: if the server was still starting when the window closed, waits up to 10s for it
+# Environment variable: DSH_PORT (default 3080)
 PORT="${DSH_PORT:-3080}"
 FLAG="$HOME/.dsh/.web-app-$PORT.flag"
 PIDF="$HOME/.dsh/.web-app-$PORT.pid"
 
 listener() { /usr/sbin/lsof -nP -iTCP:$PORT -sTCP:LISTEN -t 2>/dev/null | head -1; }
 
-# 没有归属标记 = 不是我们启动的，绝不误杀
+# No ownership flag = not ours, never kill
 [ -f "$FLAG" ] || exit 0
 rm -f "$FLAG" "$PIDF"
 
@@ -27,12 +27,12 @@ stop_listener() {
   return 0
 }
 
-# 常规路径：已有监听进程 → 直接停（实测 TERM 后端口即刻释放，秒停）
+# Normal path: a listener exists, stop it (measured: port frees instantly after TERM)
 L0=$(listener)
 if [ -n "$L0" ]; then
   stop_listener "$L0"
 else
-  # 竞态兜底：只有"停止时服务尚未监听"才等待（启动中的竞态），最多 10 秒
+  # Race guard: only wait when nothing was listening yet (server still booting), 10s max
   for i in $(seq 1 10); do
     L=$(listener)
     [ -n "$L" ] && { stop_listener "$L"; break; }
