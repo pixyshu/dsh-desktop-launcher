@@ -23,11 +23,12 @@
 | 依赖 | 要求 | 说明 |
 |---|---|---|
 | macOS | ≥ 13.0（arm64 与 x86_64 均可） | 仅支持 macOS（Swift + AppKit + WKWebView） |
-| Node.js | ≥ 22.19 | 运行 DSH 服务必需（DSH 自身要求） |
-| dsh CLI | 任意可用方式 | `npm i -g @deepseek-ai/dsh`，或 PATH 里已有 `dsh`；都没有时自动用 `npx -y @deepseek-ai/dsh` 兜底 |
+| Node.js | ≥ 22.19 | **唯一需要手动安装的依赖**（dsh 运行时必需） |
+| dsh CLI | 自动处理 | `install.sh` 检测到缺失时自动 `npm i -g @deepseek-ai/dsh`；运行时还有 `DSH_BIN` → PATH → `npx -y @deepseek-ai/dsh` 三级兜底 |
 | 构建工具 | Xcode 命令行工具（swiftc） | **仅构建时需要**：`xcode-select --install`；运行不需要 |
 | 其他 | 无 | 运行时只使用 macOS 自带的 bash / lsof / curl / nohup，无任何第三方 npm 依赖 |
 
+> 一句话：**只需先装好 Node.js**，其余 `bash install.sh` 全部自动处理。
 > 若 Node 不在常见路径（如用 `n` 版本管理器安装），可用环境变量 `DSH_NODE=/path/to/node`、`DSH_BIN=/path/to/dsh` 指定。
 
 ## 安装
@@ -84,6 +85,7 @@ src/main.swift         单窗口 WKWebView 应用；服务未就绪自动重试�
 
 ## FAQ
 
+- **还需要先装 dsh 吗？** 不需要手动装。唯一需要装的是 Node.js；`install.sh` 会自动全局安装 dsh，运行时还有 npx 兜底（首次启动会下载，较慢，建议装好后先手动开一次）。
 - **关窗后服务没停？** 只停"自己启动的"。若服务是外部来源，属预期行为；想在 3080 上接管旧服务，删除 `~/.dsh/.web-app.pid` 残留并重启应用即可。
 - **窗口空白/服务起不来？** 看 `~/.dsh/web-app-3080.log` 与 `~/.dsh/dsh-app-debug.log`；多半是 Node/dsh 未找到，用 `DSH_NODE`/`DSH_BIN` 指定。
 - **想改窗口大小/标题？** 改 `src/main.swift` 后重新 `bash build.sh`。
