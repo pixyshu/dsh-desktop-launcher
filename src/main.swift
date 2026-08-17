@@ -145,6 +145,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     // MARK: - Menu bar (macOS keyboard shortcuts are driven by menu key equivalents)
+    // All visible strings follow the current locale preference (zh/en), like the web UI.
+
+    private func uiLang() -> String {
+        if let p = currentLocalePreference() { return p }
+        let langs = UserDefaults.standard.object(forKey: "AppleLanguages") as? [String] ?? []
+        return (langs.first ?? "en").lowercased().hasPrefix("zh") ? "zh" : "en"
+    }
+
+    private func tr(_ s: String) -> String {
+        guard uiLang() == "zh" else { return s }
+        let zh: [String: String] = [
+            "About DSH": "关于 DSH",
+            "Hide DSH": "隐藏 DSH",
+            "Quit DSH": "退出 DSH",
+            "Edit": "编辑",
+            "Undo": "撤销",
+            "Redo": "重做",
+            "Cut": "剪切",
+            "Copy": "拷贝",
+            "Paste": "粘贴",
+            "Select All": "全选",
+            "View": "视图",
+            "Reload": "刷新",
+            "Window": "窗口",
+            "Minimize": "最小化",
+            "Close Window": "关闭窗口",
+            "Language": "语言",
+            "System Default": "跟随系统",
+            "DSH server failed to start": "DSH 服务启动失败",
+            "See the log": "请查看日志",
+        ]
+        return zh[s] ?? s
+    }
 
     private func buildMenu() {
         let mainMenu = NSMenu()
@@ -154,45 +187,45 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         mainMenu.addItem(appItem)
         let appMenu = NSMenu()
         appItem.submenu = appMenu
-        appMenu.addItem(withTitle: "About DSH", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        appMenu.addItem(withTitle: tr("About DSH"), action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
         appMenu.addItem(NSMenuItem.separator())
-        appMenu.addItem(withTitle: "Hide DSH", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
+        appMenu.addItem(withTitle: tr("Hide DSH"), action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
         appMenu.addItem(NSMenuItem.separator())
-        appMenu.addItem(withTitle: "Quit DSH", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        appMenu.addItem(withTitle: tr("Quit DSH"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
 
         // Edit menu: ⌘C/⌘V/⌘X/⌘A/⌘Z through the responder chain → WKWebView text editing
         let editItem = NSMenuItem()
         mainMenu.addItem(editItem)
-        let editMenu = NSMenu(title: "Edit")
+        let editMenu = NSMenu(title: tr("Edit"))
         editItem.submenu = editMenu
-        editMenu.addItem(withTitle: "Undo", action: Selector(("undo:")), keyEquivalent: "z")
-        editMenu.addItem(withTitle: "Redo", action: Selector(("redo:")), keyEquivalent: "Z")
+        editMenu.addItem(withTitle: tr("Undo"), action: Selector(("undo:")), keyEquivalent: "z")
+        editMenu.addItem(withTitle: tr("Redo"), action: Selector(("redo:")), keyEquivalent: "Z")
         editMenu.addItem(NSMenuItem.separator())
-        editMenu.addItem(withTitle: "Cut", action: Selector(("cut:")), keyEquivalent: "x")
-        editMenu.addItem(withTitle: "Copy", action: Selector(("copy:")), keyEquivalent: "c")
-        editMenu.addItem(withTitle: "Paste", action: Selector(("paste:")), keyEquivalent: "v")
-        editMenu.addItem(withTitle: "Select All", action: Selector(("selectAll:")), keyEquivalent: "a")
+        editMenu.addItem(withTitle: tr("Cut"), action: Selector(("cut:")), keyEquivalent: "x")
+        editMenu.addItem(withTitle: tr("Copy"), action: Selector(("copy:")), keyEquivalent: "c")
+        editMenu.addItem(withTitle: tr("Paste"), action: Selector(("paste:")), keyEquivalent: "v")
+        editMenu.addItem(withTitle: tr("Select All"), action: Selector(("selectAll:")), keyEquivalent: "a")
 
         // View menu: ⌘R reload
         let viewItem = NSMenuItem()
         mainMenu.addItem(viewItem)
-        let viewMenu = NSMenu(title: "View")
+        let viewMenu = NSMenu(title: tr("View"))
         viewItem.submenu = viewMenu
-        viewMenu.addItem(withTitle: "Reload", action: #selector(reloadPage), keyEquivalent: "r")
+        viewMenu.addItem(withTitle: tr("Reload"), action: #selector(reloadPage), keyEquivalent: "r")
 
         // Window menu: ⌘W close (close = quit = stop server) / ⌘M minimize
         let winItem = NSMenuItem()
         mainMenu.addItem(winItem)
-        let winMenu = NSMenu(title: "Window")
+        let winMenu = NSMenu(title: tr("Window"))
         winItem.submenu = winMenu
-        winMenu.addItem(withTitle: "Minimize", action: #selector(NSWindow.miniaturize(_:)), keyEquivalent: "m")
-        winMenu.addItem(withTitle: "Close Window", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+        winMenu.addItem(withTitle: tr("Minimize"), action: #selector(NSWindow.miniaturize(_:)), keyEquivalent: "m")
+        winMenu.addItem(withTitle: tr("Close Window"), action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
         NSApp.windowsMenu = winMenu
 
         // Language menu: English / 中文 / System default (applies live via the host settings watcher)
         let langItem = NSMenuItem()
         mainMenu.addItem(langItem)
-        let langMenu = NSMenu(title: "Language")
+        let langMenu = NSMenu(title: tr("Language"))
         langItem.submenu = langMenu
         let current = currentLocalePreference()
         let enItem = NSMenuItem(title: "English", action: #selector(setLanguage(_:)), keyEquivalent: "")
@@ -201,7 +234,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let zhItem = NSMenuItem(title: "中文", action: #selector(setLanguage(_:)), keyEquivalent: "")
         zhItem.tag = 1
         zhItem.state = current == "zh" ? .on : .off
-        let sysItem = NSMenuItem(title: "跟随系统 / System Default", action: #selector(setLanguage(_:)), keyEquivalent: "")
+        let sysItem = NSMenuItem(title: tr("System Default"), action: #selector(setLanguage(_:)), keyEquivalent: "")
         sysItem.tag = 2
         sysItem.state = current == nil ? .on : .off
         langMenu.addItem(enItem)
@@ -210,7 +243,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         langMenu.addItem(sysItem)
 
         NSApp.mainMenu = mainMenu
-        dshLog("menu built")
+        dshLog("menu built (lang=\(uiLang()))")
     }
 
     @objc private func reloadPage() {
@@ -275,7 +308,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1) { self.loadWhenReady() }
                 } else {
                     wv.loadHTMLString(
-                        "<h2>DSH server failed to start</h2><p>See ~/.dsh/web-app-\(self.port).log</p>",
+                        "<h2>\(self.tr("DSH server failed to start"))</h2><p>\(self.tr("See the log")): ~/.dsh/web-app-\(self.port).log</p>",
                         baseURL: nil
                     )
                 }
