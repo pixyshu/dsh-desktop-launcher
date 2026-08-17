@@ -31,9 +31,63 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         dshLog("applicationDidFinishLaunching (port=\(port))")
+        buildMenu()
         buildWindow()
         startServerThenLoad()
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    // MARK: - 菜单栏（macOS 快捷键依赖菜单项的 keyEquivalent）
+
+    private func buildMenu() {
+        let mainMenu = NSMenu()
+
+        // 应用菜单：⌘Q 退出 / ⌘H 隐藏
+        let appItem = NSMenuItem()
+        mainMenu.addItem(appItem)
+        let appMenu = NSMenu()
+        appItem.submenu = appMenu
+        appMenu.addItem(withTitle: "关于 DSH", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        appMenu.addItem(NSMenuItem.separator())
+        appMenu.addItem(withTitle: "隐藏 DSH", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
+        appMenu.addItem(NSMenuItem.separator())
+        appMenu.addItem(withTitle: "退出 DSH", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+
+        // 编辑菜单：⌘C/⌘V/⌘X/⌘A/⌘Z 走响应链 → WKWebView 文本编辑
+        let editItem = NSMenuItem()
+        mainMenu.addItem(editItem)
+        let editMenu = NSMenu(title: "编辑")
+        editItem.submenu = editMenu
+        editMenu.addItem(withTitle: "撤销", action: Selector(("undo:")), keyEquivalent: "z")
+        editMenu.addItem(withTitle: "重做", action: Selector(("redo:")), keyEquivalent: "Z")
+        editMenu.addItem(NSMenuItem.separator())
+        editMenu.addItem(withTitle: "剪切", action: Selector(("cut:")), keyEquivalent: "x")
+        editMenu.addItem(withTitle: "拷贝", action: Selector(("copy:")), keyEquivalent: "c")
+        editMenu.addItem(withTitle: "粘贴", action: Selector(("paste:")), keyEquivalent: "v")
+        editMenu.addItem(withTitle: "全选", action: Selector(("selectAll:")), keyEquivalent: "a")
+
+        // 视图菜单：⌘R 刷新
+        let viewItem = NSMenuItem()
+        mainMenu.addItem(viewItem)
+        let viewMenu = NSMenu(title: "视图")
+        viewItem.submenu = viewMenu
+        viewMenu.addItem(withTitle: "刷新", action: #selector(reloadPage), keyEquivalent: "r")
+
+        // 窗口菜单：⌘W 关窗（关窗=退出=停服务）/ ⌘M 最小化
+        let winItem = NSMenuItem()
+        mainMenu.addItem(winItem)
+        let winMenu = NSMenu(title: "窗口")
+        winItem.submenu = winMenu
+        winMenu.addItem(withTitle: "最小化", action: #selector(NSWindow.miniaturize(_:)), keyEquivalent: "m")
+        winMenu.addItem(withTitle: "关闭窗口", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+        NSApp.windowsMenu = winMenu
+
+        NSApp.mainMenu = mainMenu
+        dshLog("menu built")
+    }
+
+    @objc private func reloadPage() {
+        webView?.reload()
     }
 
     // 最后一个窗口关闭 → 应用退出 → applicationWillTerminate → 停止服务

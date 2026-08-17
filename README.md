@@ -1,7 +1,7 @@
 # DSH Desktop Launcher
 
 <p align="center">
-  <a href="https://github.com/pixyshu/dsh-desktop-launcher/releases"><img src="https://img.shields.io/badge/release-v1.0.0-blue" alt="release"></a>
+  <a href="https://github.com/pixyshu/dsh-desktop-launcher/releases"><img src="https://img.shields.io/github/v/release/pixyshu/dsh-desktop-launcher" alt="release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="license"></a>
   <img src="https://img.shields.io/badge/macOS-13%2B-orange" alt="macOS 13+">
   <img src="https://img.shields.io/badge/architecture-universal(arm64%2Bx86__64)-lightgrey" alt="universal">
